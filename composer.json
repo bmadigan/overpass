@@ -1,0 +1,86 @@
+{
+    "name": "bmadigan/overpass",
+    "description": "A robust Laravel package for integrating Python AI capabilities through a secure subprocess bridge",
+    "keywords": [
+        "laravel",
+        "python",
+        "ai",
+        "openai",
+        "langchain",
+        "bridge",
+        "subprocess",
+        "embedding",
+        "vector",
+        "machine-learning",
+        "overpass"
+    ],
+    "homepage": "https://github.com/bmadigan/overpass",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Brad Madigan",
+            "email": "brad@madigan.dev",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "spatie/laravel-package-tools": "^1.92",
+        "illuminate/contracts": "^11.0|^12.0",
+        "symfony/process": "^6.0|^7.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.18",
+        "nunomaduro/collision": "^8.6",
+        "larastan/larastan": "^3.6",
+        "orchestra/testbench": "^10.5",
+        "pestphp/pest": "^3.8",
+        "pestphp/pest-plugin-arch": "^3.8",
+        "pestphp/pest-plugin-laravel": "^3.2",
+        "phpstan/extension-installer": "^1.4",
+        "phpstan/phpstan-deprecation-rules": "^1.2",
+        "phpstan/phpstan-phpunit": "^1.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Bmadigan\\Overpass\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Bmadigan\\Overpass\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": "@composer run prepare",
+        "clear": "@php vendor/bin/testbench package:purge-overpass --ansi",
+        "prepare": "@php vendor/bin/testbench package:discover --ansi",
+        "build": [
+            "@composer run prepare",
+            "@php vendor/bin/pint"
+        ],
+        "analyse": "vendor/bin/phpstan analyse",
+        "test": "vendor/bin/pest",
+        "test-coverage": "vendor/bin/pest --coverage",
+        "format": "vendor/bin/pint"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Bmadigan\\Overpass\\OverpassServiceProvider"
+            ],
+            "aliases": {
+                "Overpass": "Bmadigan\\Overpass\\Facades\\Overpass"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
