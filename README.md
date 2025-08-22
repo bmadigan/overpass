@@ -7,7 +7,7 @@
 
 A robust Laravel package for integrating Python AI capabilities through a secure subprocess bridge. Instead of reimplementing complex AI libraries in PHP, this package provides a clean interface to delegate AI operations to Python's rich ecosystem (OpenAI, LangChain, scikit-learn, etc.).
 
-> **Note**: This package is **not affiliated** with the [Overpass API](https://github.com/drolbr/Overpass-API) project, which is a database engine for querying OpenStreetMap data. Our "Overpass" name refers to bridging between PHP and Python - creating a "pass over" to Python's AI ecosystem.
+> **Note**: This package is **not affiliated** with the existing [decodelabs/overpass](https://github.com/decodelabs/overpass) package, which provides a PHP bridge to Node.js. Our "Overpass" package serves a different purpose - bridging between PHP and Python for AI operations.
 
 ## 🚀 Features
 
