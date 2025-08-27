@@ -5,6 +5,19 @@
 
 A robust Laravel package for integrating Python AI capabilities through a secure subprocess bridge. Instead of reimplementing complex AI libraries in PHP, this package provides a clean interface to delegate AI operations to Python's rich ecosystem (OpenAI, LangChain, scikit-learn, etc.).
 
+## 🎬 Demo Application
+
+Check out **[Ask-My-Doc](https://github.com/bmadigan/ask-my-doc)** - a sophisticated document Q&A system built with Overpass that showcases real-world AI integration:
+
+[![Ask-My-Doc Demo](https://github.com/bmadigan/ask-my-doc/raw/main/public/screenshot.png)](https://github.com/bmadigan/ask-my-doc)
+
+**Ask-My-Doc** demonstrates Overpass in action with:
+- 📄 Document ingestion and intelligent chunking
+- 🔍 Semantic search using OpenAI embeddings
+- 💬 AI-powered Q&A with source citations
+- ⚡ Real-time Python bridge status monitoring
+- 🎨 Beautiful dark-themed UI inspired by Linear
+
 > **Note**: This package is **not affiliated** with the existing [decodelabs/overpass](https://github.com/decodelabs/overpass) package, which provides a PHP bridge to Node.js. Our "Overpass" package serves a different purpose - bridging between PHP and Python for AI operations.
 
 ## 🚀 Features
