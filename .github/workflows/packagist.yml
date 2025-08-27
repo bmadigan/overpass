@@ -1,0 +1,40 @@
+name: Packagist Auto-Update
+
+on:
+  push:
+    branches: [ "main" ]
+  release:
+    types: [published, edited]
+  workflow_dispatch: {}   # lets you run it from the Actions tab
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Packagist
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESP="$(curl -sS -w '\n%{http_code}' -X POST \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer ${{ secrets.PACKAGIST_USERNAME }}:${{ secrets.PACKAGIST_TOKEN }}" \
+            https://packagist.org/api/update-package \
+            -d '{"repository":"https://github.com/bmadigan/overpass"}')"
+
+          BODY="${RESP%$'\n'*}"
+          CODE="${RESP##*$'\n'}"
+          echo "HTTP ${CODE}"
+          echo "Response: ${BODY}"
+
+          {
+            echo "### Packagist update"
+            echo ""
+            echo "**HTTP:** ${CODE}"
+            echo ""
+            echo "```json"
+            echo "${BODY}"
+            echo "```"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          [[ "${CODE}" == "200" ]] || { echo "Non-200 from Packagist"; exit 1; }
+          echo "${BODY}" | grep -q '"status":"success"' || { echo "Packagist did not return status=success"; exit 1; }
