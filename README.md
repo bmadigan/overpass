@@ -1,8 +1,6 @@
 # Overpass
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/bmadigan/overpass.svg?style=flat-square)](https://packagist.org/packages/bmadigan/overpass)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/bmadigan/overpass/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/bmadigan/overpass/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/bmadigan/overpass/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/bmadigan/overpass/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/bmadigan/overpass.svg?style=flat-square)](https://packagist.org/packages/bmadigan/overpass)
 
 A robust Laravel package for integrating Python AI capabilities through a secure subprocess bridge. Instead of reimplementing complex AI libraries in PHP, this package provides a clean interface to delegate AI operations to Python's rich ecosystem (OpenAI, LangChain, scikit-learn, etc.).
