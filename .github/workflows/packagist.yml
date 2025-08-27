@@ -36,5 +36,5 @@ jobs:
             echo "```"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          [[ "${CODE}" == "200" ]] || { echo "Non-200 from Packagist"; exit 1; }
+          [[ "${CODE}" == "200" || "${CODE}" == "202" ]] || { echo "Unexpected HTTP code from Packagist"; exit 1; }
           echo "${BODY}" | grep -q '"status":"success"' || { echo "Packagist did not return status=success"; exit 1; }
