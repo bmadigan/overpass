@@ -147,12 +147,12 @@ def analyze_data(data):
 def main():
     operation = sys.argv[1]
     data = json.loads(sys.argv[2]) if len(sys.argv) > 2 else {}
-    
+
     operations = {
         'health_check': health_check,
         'analyze_data': analyze_data,
     }
-    
+
     if operation in operations:
         result = operations[operation](data)
         print(json.dumps(result))
@@ -207,7 +207,7 @@ class MyService
     public function __construct(
         private PythonAiBridge $bridge
     ) {}
-    
+
     public function processData(array $data): array
     {
         return $this->bridge->execute('process', $data);
