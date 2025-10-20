@@ -3,38 +3,48 @@
 declare(strict_types=1);
 
 use Bmadigan\Overpass\Services\PythonAiBridge;
+use InvalidArgumentException;
+use Mockery;
 
-it('can be instantiated', function () {
+beforeEach(function () {
+    config([
+        'overpass.script_path' => __FILE__,
+        'overpass.logging.enabled' => false,
+    ]);
+});
+
+it('throws when configured script path is missing', function () {
+    config(['overpass.script_path' => '/tmp/overpass-missing-script.py']);
+
     $bridge = new PythonAiBridge();
-    
-    expect($bridge)->toBeInstanceOf(PythonAiBridge::class);
+
+    $bridge->execute('health_check');
+})->throws(InvalidArgumentException::class);
+
+it('normalizes health check responses without a status key', function () {
+    $bridge = Mockery::mock(PythonAiBridge::class)->makePartial();
+
+    $bridge->shouldReceive('execute')
+        ->once()
+        ->with('health_check', [])
+        ->andReturn([
+            'success' => true,
+            'data' => [
+                'status' => 'healthy',
+                'components' => [
+                    'python' => ['status' => 'healthy'],
+                ],
+                'config' => [
+                    'python_version' => '3.11.0',
+                ],
+            ],
+        ]);
+
+    $result = $bridge->testConnection();
+
+    expect($result['status'])->toBe('healthy');
+    expect($result['success'])->toBeTrue();
+    expect($result['components'])->toHaveKey('python');
+    expect($result['config'])->toHaveKey('python_version');
 });
 
-it('loads configuration correctly', function () {
-    config(['overpass.script_path' => '/test/path/script.py']);
-    config(['overpass.timeout' => 120]);
-    config(['overpass.max_output_length' => 5000]);
-    
-    $bridge = new PythonAiBridge();
-    
-    // We can't directly test private properties, but we can verify the service works
-    expect($bridge)->toBeInstanceOf(PythonAiBridge::class);
-});
-
-it('can be resolved from container', function () {
-    $bridge = app(PythonAiBridge::class);
-    
-    expect($bridge)->toBeInstanceOf(PythonAiBridge::class);
-});
-
-it('can be resolved via alias', function () {
-    $bridge = app('overpass');
-    
-    expect($bridge)->toBeInstanceOf(PythonAiBridge::class);
-});
-
-it('handles missing configuration gracefully', function () {
-    config(['overpass.script_path' => null]);
-    
-    expect(fn () => new PythonAiBridge())->not->toThrow();
-});
