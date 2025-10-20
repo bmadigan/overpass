@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Bmadigan\Overpass\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Arr;
 use Bmadigan\Overpass\Services\PythonAiBridge;
 
 class OverpassTestCommand extends Command
@@ -33,22 +34,25 @@ class OverpassTestCommand extends Command
             
             $startTime = microtime(true);
             $result = $bridge->testConnection();
+            $status = $result['status'] ?? 'unknown';
+            $success = $result['success'] ?? ($status !== 'error');
+            $message = $result['message'] ?? 'An unknown error occurred';
             $duration = round((microtime(true) - $startTime) * 1000, 2);
 
-            if ($result['status'] === 'error') {
+            if (!$success || $status === 'error') {
                 $this->error('❌ Connection test failed!');
-                $this->error('Error: ' . $result['message']);
+                $this->error('Error: ' . $message);
                 return self::FAILURE;
             }
 
             $this->info("✅ Connection successful! ({$duration}ms)");
-            
+
             if ($this->option('verbose')) {
                 $this->newLine();
                 $this->line('📊 Bridge Health Details:');
                 $this->table(
                     ['Component', 'Status', 'Details'],
-                    collect($result['components'] ?? [])->map(function ($details, $component) {
+                    collect(Arr::get($result, 'components', []))->map(function ($details, $component) {
                         return [
                             $component,
                             $details['status'] ?? 'unknown',
@@ -56,11 +60,12 @@ class OverpassTestCommand extends Command
                         ];
                     })
                 );
-                
-                if (isset($result['config'])) {
+
+                $config = Arr::get($result, 'config', []);
+                if (!empty($config)) {
                     $this->newLine();
                     $this->line('⚙️  Python Configuration:');
-                    foreach ($result['config'] as $key => $value) {
+                    foreach ($config as $key => $value) {
                         $this->line("  {$key}: {$value}");
                     }
                 }
@@ -74,7 +79,7 @@ class OverpassTestCommand extends Command
         } catch (\Exception $e) {
             $this->error('❌ Connection test failed with exception!');
             $this->error('Error: ' . $e->getMessage());
-            
+
             if ($this->option('verbose')) {
                 $this->newLine();
                 $this->line('Stack trace:');
