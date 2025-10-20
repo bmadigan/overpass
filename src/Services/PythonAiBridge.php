@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Bmadigan\Overpass\Services;
 
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
+use InvalidArgumentException;
 
 /**
  * Bridge service connecting Laravel to Python AI processing capabilities.
@@ -47,7 +49,9 @@ class PythonAiBridge
      */
     public function execute(string $operation, array $data = []): array
     {
-        Log::info('Calling Python AI bridge', [
+        $this->validateScriptPath();
+
+        $this->log('info', 'Calling Python AI bridge', [
             'operation' => $operation,
             'script_path' => $this->scriptPath,
             'data_keys' => array_keys($data),
@@ -63,15 +67,10 @@ class PythonAiBridge
         try {
             $process = new Process($command);
             $process->setTimeout($this->timeout);
-            
+
             // Forward API credentials securely through environment variables
-            $process->setEnv([
-                'OPENAI_API_KEY' => config('overpass.openai.api_key') ?: env('OPENAI_API_KEY'),
-                'OPENAI_ORGANIZATION' => config('overpass.openai.organization') ?: env('OPENAI_ORGANIZATION'),
-                'PATH' => env('PATH', '/usr/local/bin:/usr/bin:/bin'),
-                'PYTHONPATH' => dirname($this->scriptPath),
-            ]);
-            
+            $process->setEnv($this->buildProcessEnvironment());
+
             $process->run();
 
             if (!$process->isSuccessful()) {
@@ -81,7 +80,7 @@ class PythonAiBridge
             return $this->parseOutput($process->getOutput(), $operation);
 
         } catch (ProcessFailedException $e) {
-            Log::error('Python AI bridge process failed', [
+            $this->log('error', 'Python AI bridge process failed', [
                 'operation' => $operation,
                 'command' => implode(' ', $command),
                 'error_output' => $e->getProcess()->getErrorOutput(),
@@ -91,7 +90,7 @@ class PythonAiBridge
             throw $e;
 
         } catch (\Exception $e) {
-            Log::error('Python AI bridge unexpected error', [
+            $this->log('error', 'Python AI bridge unexpected error', [
                 'operation' => $operation,
                 'error' => $e->getMessage(),
             ]);
@@ -113,7 +112,7 @@ class PythonAiBridge
      */
     public function generateEmbedding(string $text): array
     {
-        Log::info('Generating embedding via Python AI bridge', [
+        $this->log('info', 'Generating embedding via Python AI bridge', [
             'text_length' => strlen($text),
         ]);
 
@@ -121,7 +120,7 @@ class PythonAiBridge
 
         // Navigate Python's serialization format for numpy arrays
         if (!isset($result['data']['embeddings']) || !is_array($result['data']['embeddings'])) {
-            Log::error('Invalid embedding format in Python response', [
+            $this->log('error', 'Invalid embedding format in Python response', [
                 'result_structure' => array_keys($result ?? []),
                 'data_structure' => isset($result['data']) ? array_keys($result['data']) : 'data key missing',
             ]);
@@ -146,7 +145,7 @@ class PythonAiBridge
             throw new \RuntimeException('Failed to convert embedding format');
         }
 
-        Log::info('Embedding generated successfully', [
+        $this->log('info', 'Embedding generated successfully', [
             'embedding_dimension' => count($embeddingArray),
             'model' => $result['data']['model'] ?? 'unknown'
         ]);
@@ -163,7 +162,7 @@ class PythonAiBridge
      */
     public function vectorSearch(string $query, array $options = []): array
     {
-        Log::info('Performing vector search via Python AI bridge', [
+        $this->log('info', 'Performing vector search via Python AI bridge', [
             'query_length' => strlen($query),
             'options' => $options
         ]);
@@ -173,7 +172,7 @@ class PythonAiBridge
             'options' => $options
         ]);
 
-        Log::info('Vector search completed', [
+        $this->log('info', 'Vector search completed', [
             'results_count' => count($result['data']['results'] ?? [])
         ]);
 
@@ -185,7 +184,7 @@ class PythonAiBridge
      */
     public function chat(array $chatData): array
     {
-        Log::info('Processing chat query via Python AI bridge', [
+        $this->log('info', 'Processing chat query via Python AI bridge', [
             'session_id' => $chatData['session_id'] ?? null,
             'message_length' => strlen($chatData['message'] ?? ''),
         ]);
@@ -193,7 +192,7 @@ class PythonAiBridge
         try {
             $result = $this->execute('chat_query', $chatData);
 
-            Log::info('Chat query completed successfully', [
+            $this->log('info', 'Chat query completed successfully', [
                 'session_id' => $chatData['session_id'] ?? null,
                 'response_length' => strlen($result['response'] ?? ''),
             ]);
@@ -205,7 +204,7 @@ class PythonAiBridge
             ];
 
         } catch (\Exception $e) {
-            Log::error('Python chat bridge error', [
+            $this->log('error', 'Python chat bridge error', [
                 'session_id' => $chatData['session_id'] ?? null,
                 'error' => $e->getMessage(),
             ]);
@@ -223,21 +222,26 @@ class PythonAiBridge
      */
     public function testConnection(): array
     {
-        Log::info('Testing Python AI bridge connection');
+        $this->log('info', 'Testing Python AI bridge connection');
 
         try {
             $result = $this->execute('health_check', []);
-            Log::info('Python AI bridge health check completed', $result);
-            return $result;
+            $normalized = $this->normalizeHealthCheckResponse($result);
+            $this->log('info', 'Python AI bridge health check completed', $normalized);
+            return $normalized;
 
         } catch (\Exception $e) {
-            Log::error('Python AI bridge health check failed', [
+            $this->log('error', 'Python AI bridge health check failed', [
                 'error' => $e->getMessage(),
             ]);
 
             return [
                 'status' => 'error',
+                'success' => false,
                 'message' => $e->getMessage(),
+                'components' => [],
+                'config' => [],
+                'raw' => null,
             ];
         }
     }
@@ -251,7 +255,7 @@ class PythonAiBridge
         
         // Truncate output if too long
         if (strlen($output) > $this->maxOutputLength) {
-            Log::warning('Python bridge output truncated', [
+            $this->log('warning', 'Python bridge output truncated', [
                 'operation' => $operation,
                 'original_length' => strlen($output),
                 'max_length' => $this->maxOutputLength,
@@ -259,7 +263,7 @@ class PythonAiBridge
             $output = substr($output, 0, $this->maxOutputLength);
         }
 
-        Log::info('Python AI bridge output received', [
+        $this->log('info', 'Python AI bridge output received', [
             'operation' => $operation,
             'output_length' => strlen($output),
         ]);
@@ -301,16 +305,113 @@ class PythonAiBridge
         $result = json_decode($jsonContent, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            Log::error('Failed to decode Python bridge JSON response', [
+            $this->log('error', 'Failed to decode Python bridge JSON response', [
                 'operation' => $operation,
                 'json_error' => json_last_error_msg(),
                 'raw_output' => $output,
                 'json_content' => $jsonContent,
             ]);
-            
+
             throw new \RuntimeException('Invalid JSON response from Python: ' . json_last_error_msg());
         }
 
         return $result;
+    }
+
+    private function validateScriptPath(): void
+    {
+        if (empty($this->scriptPath) || !is_file($this->scriptPath) || !is_readable($this->scriptPath)) {
+            $this->log('error', 'Python AI bridge script path is invalid', [
+                'script_path' => $this->scriptPath,
+            ]);
+
+            throw new InvalidArgumentException('Configured Python script path is invalid or unreadable.');
+        }
+    }
+
+    private function buildProcessEnvironment(): array
+    {
+        $baseEnvironment = [];
+
+        foreach (array_merge($_SERVER, $_ENV) as $key => $value) {
+            if (!is_string($key)) {
+                continue;
+            }
+
+            if (is_scalar($value)) {
+                $baseEnvironment[$key] = (string) $value;
+            }
+        }
+
+        $overrides = array_filter([
+            'OPENAI_API_KEY' => config('overpass.openai.api_key') ?: env('OPENAI_API_KEY'),
+            'OPENAI_ORGANIZATION' => config('overpass.openai.organization') ?: env('OPENAI_ORGANIZATION'),
+            'PATH' => $baseEnvironment['PATH'] ?? env('PATH', '/usr/local/bin:/usr/bin:/bin'),
+            'PYTHONPATH' => dirname($this->scriptPath) ?: null,
+        ], static fn ($value) => $value !== null);
+
+        return array_merge($baseEnvironment, $overrides);
+    }
+
+    private function shouldLog(): bool
+    {
+        return (bool) config('overpass.logging.enabled', true);
+    }
+
+    private function log(string $level, string $message, array $context = []): void
+    {
+        if (!$this->shouldLog()) {
+            return;
+        }
+
+        $channel = config('overpass.logging.log_channel', 'default');
+
+        if ($channel !== 'default') {
+            Log::channel($channel)->log($level, $message, $context);
+            return;
+        }
+
+        Log::log($level, $message, $context);
+    }
+
+    private function normalizeHealthCheckResponse(array $response): array
+    {
+        $status = $response['status'] ?? Arr::get($response, 'data.status');
+        $success = $response['success'] ?? null;
+
+        if ($status === null) {
+            if ($success === true) {
+                $status = 'ok';
+            } elseif ($success === false) {
+                $status = 'error';
+            }
+        }
+
+        $components = $response['components'] ?? Arr::get($response, 'data.components', []);
+        if (!is_array($components)) {
+            $components = [];
+        }
+
+        $config = $response['config'] ?? Arr::get($response, 'data.config', []);
+        if (!is_array($config)) {
+            $config = [];
+        }
+
+        $message = $response['message']
+            ?? $response['error']
+            ?? Arr::get($response, 'data.message');
+
+        if ($success === null) {
+            $success = $status !== null && $status !== 'error';
+        }
+
+        return [
+            'status' => $status ?? 'unknown',
+            'success' => (bool) $success,
+            'message' => $message,
+            'components' => $components,
+            'config' => $config,
+            'raw' => $response,
+        ];
     }
 }
